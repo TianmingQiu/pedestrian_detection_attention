@@ -17,6 +17,11 @@ cd coco/PythonAPI
 make
 ```
 
+### Custom dataset adaptatio:
+- Convert BDD annotations to 'xml': https://github.com/Ugenteraan/bdd_json_to_xml/blob/master/convert.py
+- BDD dataset class: https://github.com/nishankjain/faster-rcnn-bdd/tree/master/lib/model
+- https://github.com/deboc/py-faster-rcnn/tree/master/help
+- The first thing you need to do is writing a customized data loader for your own dataset. You can refer to the data loader for pascal_voc and coco in lib/datasets/pascal_voc.py and lib/datasets/coco.py.
 
 
 
