@@ -176,8 +176,6 @@ if __name__ == '__main__':
         args.imdb_name = "vg_150-50-50_minitrain"
         args.imdbval_name = "vg_150-50-50_minival"
         args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '50']
-    elif args.dataset == "cityscapes":
-        pass  # Todo
     elif args.dataset == "bdd":
         args.imdb_name = "bdd_trainval"
         args.imdbval_name = "bdd_test"
@@ -327,7 +325,6 @@ if __name__ == '__main__':
             rpn_loss_cls, rpn_loss_box, \
             RCNN_loss_cls, RCNN_loss_bbox, \
             rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
-
             loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
                    + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
             loss_temp += loss.item()

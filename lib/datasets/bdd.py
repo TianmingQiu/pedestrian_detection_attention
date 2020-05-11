@@ -23,7 +23,7 @@ import pickle
 from .imdb import imdb
 from .imdb import ROOT_DIR
 from . import ds_utils
-from .voc_eval import voc_eval
+from .bdd_eval import bdd_eval
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
@@ -45,9 +45,7 @@ class bdd(imdb):
             else devkit_path
         self._data_path = self._devkit_path
         self._classes = ('__background__',  # always index 0
-                         'bus', 'bike', 'car',
-                         'motor', 'person', 'rider',
-                         'traffic light', 'traffic sign', 'train', 'truck')
+                         'person', 'rider')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
@@ -238,7 +236,7 @@ class bdd(imdb):
             if cls == '__background__':
                 continue
             filename = self._get_bdd_results_file_template().format(cls)
-            rec, prec, ap = voc_eval(
+            rec, prec, ap = bdd_eval(
                 filename, annopath, imagesetfile, cls, cachedir, ovthresh=0.5,
                 use_07_metric=use_07_metric)
             aps += [ap]
@@ -269,7 +267,7 @@ class bdd(imdb):
         cmd = 'cd {} && '.format(path)
         cmd += '{:s} -nodisplay -nodesktop '.format(cfg.MATLAB)
         cmd += '-r "dbstop if error; '
-        cmd += 'voc_eval(\'{:s}\',\'{:s}\',\'{:s}\',\'{:s}\'); quit;"' \
+        cmd += 'bdd_eval(\'{:s}\',\'{:s}\',\'{:s}\',\'{:s}\'); quit;"' \
             .format(self._devkit_path, self._get_comp_id(),
                     self._image_set, output_dir)
         print('Running:\n{}'.format(cmd))
