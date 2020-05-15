@@ -32,7 +32,7 @@ from model.utils.net_utils import weights_normal_init, save_net, load_net, \
 
 from model.faster_rcnn.vgg16 import vgg16
 from model.faster_rcnn.resnet import resnet
-
+from model.faster_rcnn.hydraplus import hydraplus  # todo
 
 def parse_args():
     """
@@ -43,7 +43,7 @@ def parse_args():
                         help='training dataset',
                         default='pascal_voc', type=str)
     parser.add_argument('--net', dest='net',
-                        help='vgg16, res101',
+                        help='vgg16, res101, hp',
                         default='vgg16', type=str)
     parser.add_argument('--start_epoch', dest='start_epoch',
                         help='starting epoch',
@@ -116,6 +116,11 @@ def parse_args():
     parser.add_argument('--use_tfb', dest='use_tfboard',
                         help='whether use tensorboard',
                         action='store_true')
+
+    # define training stage of HydraPlus net:
+    parser.add_argument('--hpstage', dest='hpstage',
+                        help='stage-wise training of HydraPlus net: HP | MNet | AF1 | AF2 | AF3',
+                        default='MNet', type=str)
 
     args = parser.parse_args()
     return args
@@ -247,6 +252,14 @@ if __name__ == '__main__':
         fasterRCNN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
     elif args.net == 'res152':
         fasterRCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
+    elif args.net == 'hp':
+        if args.hpstage == 'MNet':
+            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='MNet', test_flag=False)
+        elif args.hpstage == 'AF1':
+            fasterRCNN = hydraplus(imdb.classes, 'AF1')
+        elif args.hpstage == 'HP':
+            fasterRCNN = hydraplus(imdb.classes, 'HP')
+
     else:
         print("network is not defined")
         pdb.set_trace()
@@ -321,10 +334,20 @@ if __name__ == '__main__':
                 num_boxes.resize_(data[3].size()).copy_(data[3])
 
             fasterRCNN.zero_grad()
-            rois, cls_prob, bbox_pred, \
-            rpn_loss_cls, rpn_loss_box, \
-            RCNN_loss_cls, RCNN_loss_bbox, \
-            rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+
+            if args.net == 'hydraplus':
+                # get attention results
+                rois, cls_prob, bbox_pred, \
+                rpn_loss_cls, rpn_loss_box, \
+                RCNN_loss_cls, RCNN_loss_bbox, \
+                rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+                # todo: save attention results and the corresponding train/test results, especially test
+            else:
+                rois, cls_prob, bbox_pred, \
+                rpn_loss_cls, rpn_loss_box, \
+                RCNN_loss_cls, RCNN_loss_bbox, \
+                rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+
             loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
                    + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
             loss_temp += loss.item()
