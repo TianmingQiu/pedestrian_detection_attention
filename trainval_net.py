@@ -34,6 +34,7 @@ from model.faster_rcnn.vgg16 import vgg16
 from model.faster_rcnn.resnet import resnet
 from model.faster_rcnn.hydraplus import hydraplus  # todo
 
+
 def parse_args():
     """
     Parse input arguments
@@ -50,7 +51,7 @@ def parse_args():
                         default=1, type=int)
     parser.add_argument('--epochs', dest='max_epochs',
                         help='number of epochs to train',
-                        default=20, type=int)
+                        default=25, type=int)
     parser.add_argument('--disp_interval', dest='disp_interval',
                         help='number of iterations to display',
                         default=100, type=int)
@@ -253,10 +254,12 @@ if __name__ == '__main__':
     elif args.net == 'res152':
         fasterRCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
     elif args.net == 'hp':
-        if args.hpstage == 'MNet':
-            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='MNet', test_flag=False)
-        elif args.hpstage == 'AF1':
-            fasterRCNN = hydraplus(imdb.classes, 'AF1')
+        if args.hpstage == 'MNet':  # todo: pretrained? load model? init? attention output?
+            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='MNet', test_flag=True)
+        elif args.hpstage == 'AF2':
+            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='AF2', test_flag=True)
+        elif args.hpstage == 'AF3':
+            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='AF3', test_flag=True)
         elif args.hpstage == 'HP':
             fasterRCNN = hydraplus(imdb.classes, 'HP')
 

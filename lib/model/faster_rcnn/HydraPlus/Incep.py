@@ -11,24 +11,9 @@ class Inception3(nn.Module):
         self.Conv2d_2_1x1 = BasicConv2d(32, 32, kernel_size=1)
         self.Conv2d_3_3x3 = BasicConv2d(32, 96, kernel_size=3, padding=1)
 
-        self.incept_block_1 = nn.Sequential(
-            InceptionA(in_channels=96, b_1x1_out=32, b_5x5_1_out=32, b_5x5_2_out=32,
-                       b_3x3_1_out=32, b_3x3_2_out=48, b_3x3_3_out=48, b_pool_out=16),  # C_out =128
-            InceptionB(in_channels=128, b_1x1_1_out=32, b_1x1_2_out=80,
-                       b_3x3_1_out=32, b_3x3_2_out=48, b_3x3_3_out=48)  # C_out = 256
-        )
-        self.incept_block_2 = nn.Sequential(
-            InceptionA(in_channels=256, b_1x1_out=112, b_5x5_1_out=32, b_5x5_2_out=48,
-                       b_3x3_1_out=48, b_3x3_2_out=64, b_3x3_3_out=64, b_pool_out=64),  # C_out = 288
-            InceptionB(in_channels=288, b_1x1_1_out=64, b_1x1_2_out=86,
-                       b_3x3_1_out=96, b_3x3_2_out=128, b_3x3_3_out=128)  # C_out = 502??!
-        )
-        self.incept_block_3 = nn.Sequential(
-            InceptionA(in_channels=502, b_1x1_out=176, b_5x5_1_out=96, b_5x5_2_out=160,
-                       b_3x3_1_out=80, b_3x3_2_out=112, b_3x3_3_out=112, b_pool_out=64),  # C_out = 512
-            InceptionA(in_channels=512, b_1x1_out=176, b_5x5_1_out=96, b_5x5_2_out=160,
-                       b_3x3_1_out=80, b_3x3_2_out=112, b_3x3_3_out=112, b_pool_out=64)  # C_out = 512
-        )
+        self.incept_block_1 = InceptBlock1()
+        self.incept_block_2 = InceptBlock2()
+        self.incept_block_3 = InceptBlock3()
 
         if init_weights:
             for m in self.modules():
@@ -45,20 +30,28 @@ class Inception3(nn.Module):
                     nn.init.constant_(m.bias, 0)
         else:
             # todo: load the pre-trained path
-            pass
+            #       models/hp/bdd/faster_rcnn_1_20_727.pth contains whole faster rcnn para
+            #       better to move the pretrained model to data
+            #       save the pure hydra mnet backbone
+            pretrained_state_dict = torch.load("models/hp/bdd/faster_rcnn_1_20_727.pth")
+
+            self.load_state_dict({k[10:]: v for k, v in pretrained_state_dict['model'].items() if k[10:] in self.state_dict()})
+            torch.save(self.incept_block_1.state_dict(), 'data/pretrained_model/hp_mnet_incept1.pth')
+            torch.save(self.incept_block_2.state_dict(), 'data/pretrained_model/hp_mnet_incept2.pth')
+            torch.save(self.incept_block_3.state_dict(), 'data/pretrained_model/hp_mnet_incept3.pth')
+
 
     def forward(self, x):
         x = self.Conv2d_1_7x7_s2(x)
         x = F.max_pool2d(x, kernel_size=3, stride=2)
         x = self.Conv2d_2_1x1(x)
         x = self.Conv2d_3_3x3(x)
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
+        x0 = F.max_pool2d(x, kernel_size=3, stride=2)
 
-        x = self.incept_block_1(x)
+        x = self.incept_block_1(x0)
         y = self.incept_block_2(x)
         z = self.incept_block_3(y)
-
-        return x, y, z
+        return x0, x, y, z
 
 
 class InceptionA(nn.Module):
@@ -145,3 +138,45 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         return F.relu(x, inplace=True)
+
+
+class InceptBlock1(nn.Module):
+    def __init__(self):
+        super(InceptBlock1, self).__init__()
+        self.module_a = InceptionA(in_channels=96, b_1x1_out=32, b_5x5_1_out=32, b_5x5_2_out=32,
+                                   b_3x3_1_out=32, b_3x3_2_out=48, b_3x3_3_out=48, b_pool_out=16)  # C_out =128
+        self.module_b = InceptionB(in_channels=128, b_1x1_1_out=32, b_1x1_2_out=80,
+                                   b_3x3_1_out=32, b_3x3_2_out=48, b_3x3_3_out=48)
+
+    def forward(self, x):
+        x = self.module_a(x)
+        x = self.module_b(x)
+        return x
+
+
+class InceptBlock2(nn.Module):
+    def __init__(self):
+        super(InceptBlock2, self).__init__()
+        self.module_a = InceptionA(in_channels=256, b_1x1_out=112, b_5x5_1_out=32, b_5x5_2_out=48,
+                                   b_3x3_1_out=48, b_3x3_2_out=64, b_3x3_3_out=64, b_pool_out=64)  # C_out = 288
+        self.module_b = InceptionB(in_channels=288, b_1x1_1_out=64, b_1x1_2_out=86,
+                                   b_3x3_1_out=96, b_3x3_2_out=128, b_3x3_3_out=128)  # C_out = 502??!
+
+    def forward(self, x):
+        x = self.module_a(x)
+        x = self.module_b(x)
+        return x
+
+
+class InceptBlock3(nn.Module):
+    def __init__(self):
+        super(InceptBlock3, self).__init__()
+        self.module_a = InceptionA(in_channels=502, b_1x1_out=176, b_5x5_1_out=96, b_5x5_2_out=160,
+                                   b_3x3_1_out=80, b_3x3_2_out=112, b_3x3_3_out=112, b_pool_out=64)
+        self.module_b = InceptionA(in_channels=512, b_1x1_out=176, b_5x5_1_out=96, b_5x5_2_out=160,
+                                   b_3x3_1_out=80, b_3x3_2_out=112, b_3x3_3_out=112, b_pool_out=64)
+
+    def forward(self, x):
+        x = self.module_a(x)
+        x = self.module_b(x)
+        return x
