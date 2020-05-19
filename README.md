@@ -14,7 +14,7 @@ Download dataset and pre-trained model:
 ```shell script
 cd data
 ```
-Download (bdd_data)[https://www.dropbox.com/s/yhy179kakprsar1/bdd_data.zip?dl=0] and (pretrained_model)[https://www.dropbox.com/s/nf94mno6mu5y1g1/pretrained_model.zip?dl=0] here.
+Download [bdd_data](https://www.dropbox.com/s/yhy179kakprsar1/bdd_data.zip?dl=0) and [pretrained_model](https://www.dropbox.com/s/nf94mno6mu5y1g1/pretrained_model.zip?dl=0) here.
 The directroy looks like:
 ```shell script
 data
