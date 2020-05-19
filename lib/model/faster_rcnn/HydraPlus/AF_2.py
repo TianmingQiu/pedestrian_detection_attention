@@ -1,21 +1,21 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-# from .Incep import Inception3, InceptionA, InceptionB, BasicConv2d
-from .Incep import *
+from .MNet import *
 import pdb
 
 
 class AF2(nn.Module):
-    def __init__(self):
+    def __init__(self, att_out=False):
         super(AF2, self).__init__()
-        self.MNet = Inception3(False)  # todo: flag name should be changed
-        for param in self.MNet.parameters():
-            param.requires_grad = False
+        with torch.no_grad():
+            self.MNet = MNet(False)
+            self.MNet.init_w()
+            for param in self.MNet.parameters():
+                param.requires_grad = False
+
+        self.att_out = att_out
 
         self.att_channel_L = 1
 
-        self.Att = BasicConv2d(502, self.att_channel_L, kernel_size=1)  # todo:size
+        self.Att = BasicConv2d(502, self.att_channel_L, kernel_size=1)
 
         self.att_branch_1 = nn.Sequential(InceptBlock1(), InceptBlock2(), InceptBlock3())
         self.att_branch_2 = nn.Sequential(InceptBlock2(), InceptBlock3())
@@ -34,8 +34,8 @@ class AF2(nn.Module):
 
         attentive = self.Att(feature_out2)
 
-        attentive2 = self.patch(F.upsample(attentive, scale_factor=2))  # ToDo: make sure same size as f1
-        attentive1 = self.patch(F.upsample(attentive2, scale_factor=2))  # ToDo: make sure same size as f0
+        attentive2 = self.patch(F.upsample(attentive, scale_factor=2))
+        attentive1 = self.patch(F.upsample(attentive2, scale_factor=2))
 
         # attention branch 1
         for i in range(self.att_channel_L):
@@ -57,7 +57,7 @@ class AF2(nn.Module):
             # 8 x 8 x 2048
             ret = torch.cat((ret, att_feature_out3), dim=1)
 
-        # attention branch 2
+        # attention branch 3
         attentive3 = attentive
         for i in range(self.att_channel_L):
             temp = attentive3[:, i].clone()
@@ -68,7 +68,11 @@ class AF2(nn.Module):
 
         # final feature size: [batch_size, 512 x 3 x L, 19, 33]
 
-        return attentive, ret
+        if self.att_out:
+            # torch.cuda.synchronize()
+            return attentive[0][0].detach().cpu(), ret
+        else:
+            return ret
 
     def init_weight(self):
         incept1_pretrained_state_dict = torch.load('data/pretrained_model/hp_mnet_incept1.pth')

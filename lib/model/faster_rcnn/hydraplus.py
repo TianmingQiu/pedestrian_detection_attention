@@ -34,14 +34,15 @@ from model.utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_gri
 
 
 # from .HydraPlus.Hydraplus import HP
-from .HydraPlus.Incep import Inception3
+from .HydraPlus.MNet import MNet
 from .HydraPlus.AF_2 import AF2
 from .HydraPlus.AF_3 import AF3
 
 
-class hydraplus(_fasterRCNN):
+class HydraPlus(_fasterRCNN):
     def __init__(self, classes, class_agnostic=False, stage='MNet', test_flag=False):
         self.stage = stage
+        self.dout_base_model = None
         if self.stage == 'MNet':
             self.dout_base_model = 512
         elif self.stage == 'AF2' or self.stage == 'AF3':
@@ -50,18 +51,20 @@ class hydraplus(_fasterRCNN):
         self.test_flag = test_flag
 
         _fasterRCNN.__init__(self, classes, class_agnostic)
-        self.attention_output = True  # ToDo: outside define
 
     def _init_modules(self):
         if self.stage == 'MNet':
-            self.RCNN_base = Inception3(init_weights=(not self.test_flag))
-            self.dout_base_model = 512
+            self.RCNN_base = MNet(init_weights=False)  # todo: init weights only for first training
         elif self.stage == 'AF2':
-            self.RCNN_base = AF2()
-            self.dout_base_model = 512 * 3  # AF2: 512 * 3 * L
+            if self.test_flag:
+                self.RCNN_base = AF2(att_out=True)
+            else:
+                self.RCNN_base = AF2()
         elif self.stage == 'AF3':
-            self.RCNN_base = AF3()
-            self.dout_base_model = 512 * 3
+            if self.test_flag:
+                self.RCNN_base = AF3(att_out=True)
+            else:
+                self.RCNN_base = AF3()
         # elif self.stage == 'HP':
             # self.RCNN_base = HP()  # different branch output parts of
 
@@ -103,10 +106,12 @@ class hydraplus(_fasterRCNN):
         # feed image data to base model to obtain base feature map
         if self.stage == "MNet":
             _, _, _, base_feat = self.RCNN_base(im_data)  # torch.Size([2, 512, 37, 67])
-        elif self.stage == "AF2":
-            attention, base_feat = self.RCNN_base(im_data)  # torch.Size([2, 512 * 3, 37, 67])
-        elif self.stage == "AF3":
-            attention, base_feat = self.RCNN_base(im_data)  # torch.Size([2, 512 * 3, 37, 67])
+        elif self.stage == "AF2" or self.stage == "AF3":
+            if self.test_flag:
+                attention, base_feat = self.RCNN_base(im_data)  # torch.Size([2, 512 * 3, 37, 67])
+            else:
+                base_feat = self.RCNN_base(im_data)
+
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
 
@@ -162,8 +167,7 @@ class hydraplus(_fasterRCNN):
         cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
         bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
 
-        if self.attention_output:
-            attention[0][0].cpu().detach()
+        if self.test_flag:
             return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label, attention
         else:
             return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label

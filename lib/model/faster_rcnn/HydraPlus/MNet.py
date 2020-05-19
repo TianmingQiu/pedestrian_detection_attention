@@ -4,9 +4,9 @@ import torch.nn.functional as F
 import pdb
 
 
-class Inception3(nn.Module):
+class MNet(nn.Module):
     def __init__(self, init_weights):
-        super(Inception3, self).__init__()
+        super(MNet, self).__init__()
         self.Conv2d_1_7x7_s2 = BasicConv2d(3, 32, kernel_size=7, stride=2)
         self.Conv2d_2_1x1 = BasicConv2d(32, 32, kernel_size=1)
         self.Conv2d_3_3x3 = BasicConv2d(32, 96, kernel_size=3, padding=1)
@@ -28,18 +28,6 @@ class Inception3(nn.Module):
                 elif isinstance(m, nn.BatchNorm2d):
                     nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)
-        else:
-            # todo: load the pre-trained path
-            #       models/hp/bdd/faster_rcnn_1_20_727.pth contains whole faster rcnn para
-            #       better to move the pretrained model to data
-            #       save the pure hydra mnet backbone
-            pretrained_state_dict = torch.load("models/hp/bdd/faster_rcnn_1_20_727.pth")
-
-            self.load_state_dict({k[10:]: v for k, v in pretrained_state_dict['model'].items() if k[10:] in self.state_dict()})
-            torch.save(self.incept_block_1.state_dict(), 'data/pretrained_model/hp_mnet_incept1.pth')
-            torch.save(self.incept_block_2.state_dict(), 'data/pretrained_model/hp_mnet_incept2.pth')
-            torch.save(self.incept_block_3.state_dict(), 'data/pretrained_model/hp_mnet_incept3.pth')
-
 
     def forward(self, x):
         x = self.Conv2d_1_7x7_s2(x)
@@ -52,6 +40,16 @@ class Inception3(nn.Module):
         y = self.incept_block_2(x)
         z = self.incept_block_3(y)
         return x0, x, y, z
+
+    def incepts_weight_save(self):
+        torch.save(self.state_dict(), 'data/pretrained_model/hp_mnet.pth')
+        torch.save(self.incept_block_1.state_dict(), 'data/pretrained_model/hp_mnet_incept1.pth')
+        torch.save(self.incept_block_2.state_dict(), 'data/pretrained_model/hp_mnet_incept2.pth')
+        torch.save(self.incept_block_3.state_dict(), 'data/pretrained_model/hp_mnet_incept3.pth')
+
+    def init_w(self):
+        pretrained_state_dict = torch.load("data/pretrained_model/hp_mnet.pth")
+        self.load_state_dict(pretrained_state_dict)
 
 
 class InceptionA(nn.Module):

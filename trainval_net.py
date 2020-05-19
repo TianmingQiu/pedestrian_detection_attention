@@ -32,7 +32,12 @@ from model.utils.net_utils import weights_normal_init, save_net, load_net, \
 
 from model.faster_rcnn.vgg16 import vgg16
 from model.faster_rcnn.resnet import resnet
-from model.faster_rcnn.hydraplus import hydraplus  # todo
+from model.faster_rcnn.hydraplus import HydraPlus
+import copy
+
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
+
 
 
 def parse_args():
@@ -51,7 +56,7 @@ def parse_args():
                         default=1, type=int)
     parser.add_argument('--epochs', dest='max_epochs',
                         help='number of epochs to train',
-                        default=25, type=int)
+                        default=50, type=int)
     parser.add_argument('--disp_interval', dest='disp_interval',
                         help='number of iterations to display',
                         default=100, type=int)
@@ -217,7 +222,7 @@ if __name__ == '__main__':
     sampler_batch = sampler(train_size, args.batch_size)
 
     dataset = roibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                             imdb.num_classes, training=True)
+                             imdb.num_classes, training=True)  # todo: dataset
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                              sampler=sampler_batch, num_workers=args.num_workers)
@@ -254,14 +259,14 @@ if __name__ == '__main__':
     elif args.net == 'res152':
         fasterRCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
     elif args.net == 'hp':
-        if args.hpstage == 'MNet':  # todo: pretrained? load model? init? attention output?
-            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='MNet', test_flag=True)
+        if args.hpstage == 'MNet':
+            fasterRCNN = HydraPlus(imdb.classes, class_agnostic=args.class_agnostic, stage='MNet', test_flag=False)
         elif args.hpstage == 'AF2':
-            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='AF2', test_flag=True)
+            fasterRCNN = HydraPlus(imdb.classes, class_agnostic=args.class_agnostic, stage='AF2', test_flag=False)
         elif args.hpstage == 'AF3':
-            fasterRCNN = hydraplus(imdb.classes, class_agnostic=args.class_agnostic, stage='AF3', test_flag=True)
+            fasterRCNN = HydraPlus(imdb.classes, class_agnostic=args.class_agnostic, stage='AF3', test_flag=False)
         elif args.hpstage == 'HP':
-            fasterRCNN = hydraplus(imdb.classes, 'HP')
+            fasterRCNN = HydraPlus(imdb.classes, 'HP')
 
     else:
         print("network is not defined")
@@ -297,15 +302,18 @@ if __name__ == '__main__':
         load_name = os.path.join(output_dir,
                                  'faster_rcnn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
         print("loading checkpoint %s" % (load_name))
-        checkpoint = torch.load(load_name)
+        checkpoint_raw = torch.load(load_name)
+        checkpoint = copy.deepcopy(checkpoint_raw)
+        del checkpoint_raw
         args.session = checkpoint['session']
         args.start_epoch = checkpoint['epoch']
         fasterRCNN.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
-        lr = optimizer.param_groups[0]['lr']
+        # lr = optimizer.param_groups[0]['lr']
         if 'pooling_mode' in checkpoint.keys():
             cfg.POOLING_MODE = checkpoint['pooling_mode']
         print("loaded checkpoint %s" % (load_name))
+        del checkpoint
 
     if args.mGPUs:
         fasterRCNN = nn.DataParallel(fasterRCNN)
@@ -329,7 +337,9 @@ if __name__ == '__main__':
 
         data_iter = iter(dataloader)
         for step in range(iters_per_epoch):
-            data = next(data_iter)
+            data_raw = next(data_iter)
+            data = copy.deepcopy(data_raw)
+            del data_raw
             with torch.no_grad():
                 im_data.resize_(data[0].size()).copy_(data[0])
                 im_info.resize_(data[1].size()).copy_(data[1])
@@ -338,18 +348,10 @@ if __name__ == '__main__':
 
             fasterRCNN.zero_grad()
 
-            if args.net == 'hydraplus':
-                # get attention results
-                rois, cls_prob, bbox_pred, \
-                rpn_loss_cls, rpn_loss_box, \
-                RCNN_loss_cls, RCNN_loss_bbox, \
-                rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
-                # todo: save attention results and the corresponding train/test results, especially test
-            else:
-                rois, cls_prob, bbox_pred, \
-                rpn_loss_cls, rpn_loss_box, \
-                RCNN_loss_cls, RCNN_loss_bbox, \
-                rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+            rois, cls_prob, bbox_pred, \
+            rpn_loss_cls, rpn_loss_box, \
+            RCNN_loss_cls, RCNN_loss_bbox, \
+            rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
 
             loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
                    + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
@@ -411,6 +413,13 @@ if __name__ == '__main__':
             'class_agnostic': args.class_agnostic,
         }, save_name)
         print('save model: {}'.format(save_name))
+
+        # save MNet weights for AF branches
+        if args.net == 'hp' and args.hpstage == 'MNet':
+            if args.mGPUs:
+                fasterRCNN.module.RCNN_base.incepts_weight_save()
+            else:
+                fasterRCNN.RCNN_base.incepts_weight_save()
 
     if args.use_tfboard:
         logger.close()
