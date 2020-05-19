@@ -1,7 +1,7 @@
 - Modified from original git repo:https://github.com/jwyang/faster-rcnn.pytorch/tree/pytorch-1.0. ATTENTION: pytorch 1.0 branch, and prepare the project with pytorch-1.0 README.md
 
 ### Preparation
-- Prepare data and vgg pretrained model
+- Prepare data and HydraPlus pretrained model
 First of all, clone the code
 ```shell script
 git clone git@github.com:TianmingQiu/pedestrian_detection_attention.git
