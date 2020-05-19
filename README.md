@@ -40,20 +40,21 @@ make
 Check `train.sh` and run `sh train.sh`
 
 
+### Other information
 - test your training e.g.:
 ```shell script
 python trainval_net.py --dataset pascal_voc --net vgg16 --bs 24 --nw 8 --lr 0.001 --lr_decay_step 1000 --cuda --mGPUs
 ```
 
 
-### Custom dataset adaptation:
+##### Custom dataset adaptation:
 - Convert BDD annotations to 'xml': https://github.com/Ugenteraan/bdd_json_to_xml/blob/master/convert.py
 - BDD dataset class: https://github.com/nishankjain/faster-rcnn-bdd/tree/master/lib/model
 - https://github.com/deboc/py-faster-rcnn/tree/master/help
 - The first thing you need to do is writing a customized data loader for your own dataset. You can refer to the data loader for pascal_voc and coco in lib/datasets/pascal_voc.py and lib/datasets/coco.py.
 
 
-### HydraPlus detector:
+##### HydraPlus detector:
 Train the MNet branch of HydraPlus net:
 ```shell script
 BATCH_SIZE=128
