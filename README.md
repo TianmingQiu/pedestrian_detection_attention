@@ -1,4 +1,4 @@
-- Modified from original git repo:https://github.com/jwyang/faster-rcnn.pytorch/tree/pytorch-1.0. ATTENTION: pytorch 1.0 branch, and prepare the project with pytorch-1.0 README.md
+- Modified from original git [repo](https://github.com/jwyang/faster-rcnn.pytorch/tree/pytorch-1.0). ATTENTION: pytorch 1.0 branch, and prepare the project with pytorch-1.0 README.md
 
 ### Preparation
 - Prepare data and HydraPlus pretrained model
@@ -14,7 +14,7 @@ Download dataset and pre-trained model:
 ```shell script
 cd data
 ```
-Download [bdd_data](https://www.dropbox.com/s/yhy179kakprsar1/bdd_data.zip?dl=0) and [pretrained_model](https://www.dropbox.com/s/nf94mno6mu5y1g1/pretrained_model.zip?dl=0) here.
+Download [bdd_data](https://drive.google.com/drive/folders/1KSldOm_qpK_miH3SyVtl8FEV3Z06-YH7?usp=sharing) and [pretrained_model](https://drive.google.com/drive/folders/1vNrbIiPolcgLef7QvYVjYS9A55QwmR44?usp=sharing) here.
 The directroy looks like:
 ```shell script
 data
